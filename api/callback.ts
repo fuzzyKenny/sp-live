@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 
-import { exchangeCodeForToken, setSpotifyCookies } from "./_spotify"
+import { exchangeCodeForToken, setSpotifyCookies } from "./_spotify.js"
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const code = Array.isArray(req.query.code)

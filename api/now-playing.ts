@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 
-import { parseCookies, refreshAccessToken, setSpotifyCookies } from "./_spotify"
+import { parseCookies, refreshAccessToken, setSpotifyCookies } from "./_spotify.js"
 
 const NOW_PLAYING_URL = "https://api.spotify.com/v1/me/player/currently-playing"
 

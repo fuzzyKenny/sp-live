@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 
-import { getSpotifyConfig, SPOTIFY_SCOPES } from "./_spotify"
+import { getSpotifyConfig, SPOTIFY_SCOPES } from "./_spotify.js"
 
 export default function handler(_req: VercelRequest, res: VercelResponse) {
   try {
