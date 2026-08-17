@@ -184,6 +184,8 @@ export function SpotifyPill({
   const rotation = useMotionValue(0)
   const scrollX = useMotionValue(0)
 
+  const prevTrackRef = useRef({ trackName, artistName })
+
   const config = VARIANT_CONFIG[variant]
   const [responsiveMaxWidth, setResponsiveMaxWidth] = useState(() =>
     getViewportTextWidth(config.size, maxWidth)
@@ -315,6 +317,15 @@ export function SpotifyPill({
       scrollAnimation.current?.stop()
     }
   }, [])
+
+  useEffect(() => {
+    const prev = prevTrackRef.current
+    if (prev.trackName !== trackName || prev.artistName !== artistName) {
+      prevTrackRef.current = { trackName, artistName }
+      expand()
+      collapse()
+    }
+  }, [trackName, artistName, expand, collapse])
 
   const trackDetails = (ariaHidden = false) => (
     <div
