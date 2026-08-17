@@ -23,12 +23,12 @@ export function App() {
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
+    <div className="flex min-h-svh items-center justify-center px-4 py-8">
+      <div className="flex w-full max-w-sm flex-col items-center gap-4 sm:max-w-md">
         <h1 className="text-2xl font-bold">Spotify Plugin</h1>
 
         {(showLoginButton || isAuthenticated) && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             {showLoginButton && (
               <a href="/api/login">
                 <Button>

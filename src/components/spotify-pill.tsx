@@ -24,6 +24,8 @@ export interface SpotifyPillProps {
 }
 
 const DEFAULT_MAX_TEXT_WIDTH = 180
+const MIN_TEXT_WIDTH = 96
+const VIEWPORT_SAFE_GUTTER = 32
 const EXPANDED_LEFT_PADDING = 8
 const ICON_TEXT_GAP = 10
 const INLINE_ITEM_GAP = 6
@@ -115,6 +117,21 @@ function clearTimer(
   timer.current = null
 }
 
+function getViewportTextWidth(size: number, maxWidth: number) {
+  if (typeof window === "undefined") {
+    return maxWidth
+  }
+
+  const availableWidth =
+    window.innerWidth -
+    VIEWPORT_SAFE_GUTTER * 2 -
+    size -
+    EXPANDED_LEFT_PADDING -
+    ICON_TEXT_GAP
+
+  return Math.min(maxWidth, Math.max(MIN_TEXT_WIDTH, availableWidth))
+}
+
 function getTextWidth(text: string, font: string) {
   const canvas = document.createElement("canvas")
   const context = canvas.getContext("2d")
@@ -168,18 +185,35 @@ export function SpotifyPill({
   const scrollX = useMotionValue(0)
 
   const config = VARIANT_CONFIG[variant]
+  const [responsiveMaxWidth, setResponsiveMaxWidth] = useState(() =>
+    getViewportTextWidth(config.size, maxWidth)
+  )
   const contentWidth = useMemo(
     () => getTrackDetailsWidth({ trackName, artistName, artistSize, variant }),
     [artistName, artistSize, trackName, variant]
   )
   const animationState = expanded ? "expanded" : "collapsed"
   const paddedContentWidth = Math.ceil(contentWidth) + config.textPadding
-  const shouldScroll = paddedContentWidth > maxWidth
-  const textAreaWidth = Math.min(paddedContentWidth, maxWidth)
+  const shouldScroll = paddedContentWidth > responsiveMaxWidth
+  const textAreaWidth = Math.min(paddedContentWidth, responsiveMaxWidth)
   const animationCustom: VariantCustom = {
     size: config.size,
     textWidth: textAreaWidth,
   }
+
+  useEffect(() => {
+    const updateResponsiveWidth = () => {
+      setResponsiveMaxWidth(getViewportTextWidth(config.size, maxWidth))
+    }
+    const frame = window.requestAnimationFrame(updateResponsiveWidth)
+
+    window.addEventListener("resize", updateResponsiveWidth)
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener("resize", updateResponsiveWidth)
+    }
+  }, [config.size, maxWidth])
 
   const stopSpin = useCallback(() => {
     spinAnimation.current?.stop()
@@ -245,15 +279,33 @@ export function SpotifyPill({
     startScroll()
   }, [startScroll, startSpin])
 
+  const collapseNow = useCallback(() => {
+    clearTimer(collapseTimer)
+    setExpanded(false)
+    stopSpin()
+    stopScroll()
+  }, [stopScroll, stopSpin])
+
   const collapse = useCallback(() => {
     clearTimer(collapseTimer)
+    collapseTimer.current = setTimeout(collapseNow, COLLAPSE_DELAY)
+  }, [collapseNow])
 
-    collapseTimer.current = setTimeout(() => {
-      setExpanded(false)
-      stopSpin()
-      stopScroll()
-    }, COLLAPSE_DELAY)
-  }, [stopScroll, stopSpin])
+  const toggleOnTouch = useCallback(
+    (event: MouseEvent | PointerEvent | TouchEvent) => {
+      if (!(event instanceof PointerEvent) || event.pointerType !== "touch") {
+        return
+      }
+
+      if (expanded) {
+        collapseNow()
+        return
+      }
+
+      expand()
+    },
+    [collapseNow, expanded, expand]
+  )
 
   useEffect(() => {
     return () => {
@@ -299,6 +351,7 @@ export function SpotifyPill({
     <motion.button
       type="button"
       aria-label={`${trackName} by ${artistName} on Spotify`}
+      aria-pressed={expanded}
       title={`${trackName} — ${artistName}`}
       className={cn(
         "relative flex items-center justify-center overflow-hidden rounded-full text-white",
@@ -309,8 +362,10 @@ export function SpotifyPill({
       custom={animationCustom}
       animate={animationState}
       transition={{ duration: 0.3, ease: "easeInOut" }}
+      whileTap={{ scale: 0.98 }}
       onHoverStart={expand}
       onHoverEnd={collapse}
+      onTap={toggleOnTouch}
     >
       <motion.span className="z-10 shrink-0" style={{ rotate: rotation }}>
         <SiSpotify className={config.iconClassName} aria-hidden="true" />
