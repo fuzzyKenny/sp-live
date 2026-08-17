@@ -12,14 +12,14 @@ import { SiSpotify } from "react-icons/si"
 import { cn } from "@/lib/utils"
 import { Separator } from "@/components/ui/separator"
 
-type PillVariant = "inline" | "stacked"
-type ArtistSize = "xs" | "sm" | "base"
+export type SpotifyPillVariant = "inline" | "stacked"
+export type SpotifyPillArtistSize = "xs" | "sm" | "base"
 
-interface SpotifyPillProps {
+export interface SpotifyPillProps {
   trackName: string
   artistName: string
-  variant?: PillVariant
-  artistSize?: ArtistSize
+  variant?: SpotifyPillVariant
+  artistSize?: SpotifyPillArtistSize
   maxWidth?: number
 }
 
@@ -38,13 +38,13 @@ const SPIN_DURATION = 2
 const FONT_FAMILY = "'Geist Variable', sans-serif"
 const TRACK_FONT = `500 14px ${FONT_FAMILY}`
 
-const ARTIST_TEXT_CLASS: Record<ArtistSize, string> = {
+const ARTIST_TEXT_CLASS: Record<SpotifyPillArtistSize, string> = {
   xs: "text-xs",
   sm: "text-sm",
   base: "text-base",
 }
 
-const ARTIST_FONT_SIZE: Record<ArtistSize, number> = {
+const ARTIST_FONT_SIZE: Record<SpotifyPillArtistSize, number> = {
   xs: 12,
   sm: 14,
   base: 16,

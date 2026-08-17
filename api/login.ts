@@ -3,6 +3,10 @@ import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { getSpotifyConfig, SPOTIFY_SCOPES } from "./_spotify.js"
 
 export default function handler(_req: VercelRequest, res: VercelResponse) {
+  if (process.env.VITE_SPOTIFY_AUTH_MODE === "private") {
+    return res.status(403).json({ error: "Spotify login is private" })
+  }
+
   try {
     const { clientId, redirectUri } = getSpotifyConfig()
     const params = new URLSearchParams({

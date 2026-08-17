@@ -5,6 +5,7 @@ const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
 export const SPOTIFY_SCOPES = [
   "user-read-currently-playing",
   "user-read-playback-state",
+  "user-read-recently-played",
 ].join(" ")
 
 type SpotifyTokenResponse = {

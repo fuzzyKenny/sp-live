@@ -1,28 +1,94 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 
-import { parseCookies, refreshAccessToken, setSpotifyCookies } from "./_spotify.js"
+import {
+  parseCookies,
+  refreshAccessToken,
+  setSpotifyCookies,
+} from "./_spotify.js"
 
 const NOW_PLAYING_URL = "https://api.spotify.com/v1/me/player/currently-playing"
+const RECENTLY_PLAYED_URL =
+  "https://api.spotify.com/v1/me/player/recently-played?limit=1"
 
-async function fetchNowPlaying(accessToken: string) {
-  return fetch(NOW_PLAYING_URL, {
+type SpotifyTrack = {
+  name: string
+  artists: { name: string }[]
+  album: {
+    name: string
+    images: { url: string; width: number; height: number }[]
+  }
+  external_urls: {
+    spotify: string
+  }
+}
+
+type NowPlayingResponse = {
+  is_playing?: boolean
+  item?: SpotifyTrack | null
+}
+
+type RecentlyPlayedResponse = {
+  items?: Array<{
+    track: SpotifyTrack
+    played_at: string
+  }>
+}
+
+function fetchSpotify(url: string, accessToken: string) {
+  return fetch(url, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
   })
 }
 
-async function sendNowPlayingResponse(response: Response, res: VercelResponse) {
+async function getLastPlayed(accessToken: string) {
+  const response = await fetchSpotify(RECENTLY_PLAYED_URL, accessToken)
+
+  if (!response.ok) {
+    return { is_playing: false }
+  }
+
+  const data = (await response.json()) as RecentlyPlayedResponse
+  const lastPlayed = data.items?.[0]
+
+  return {
+    is_playing: false,
+    item: lastPlayed?.track,
+    played_at: lastPlayed?.played_at,
+  }
+}
+
+async function getNowOrLastPlayed(accessToken: string) {
+  const response = await fetchSpotify(NOW_PLAYING_URL, accessToken)
+
   if (response.status === 204) {
-    return res.json({ is_playing: false })
+    return getLastPlayed(accessToken)
   }
 
   if (!response.ok) {
-    return res.status(response.status).json({ error: "Spotify request failed" })
+    return response
   }
 
-  const data = await response.json()
-  return res.json(data)
+  const data = (await response.json()) as NowPlayingResponse
+
+  if (!data.item) {
+    return getLastPlayed(accessToken)
+  }
+
+  return data
+}
+
+async function sendNowPlayingResponse(
+  result:
+    Response | Awaited<ReturnType<typeof getLastPlayed>> | NowPlayingResponse,
+  res: VercelResponse
+) {
+  if (result instanceof Response) {
+    return res.status(result.status).json({ error: "Spotify request failed" })
+  }
+
+  return res.json(result)
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -41,17 +107,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       setSpotifyCookies(res, token)
     }
 
-    const response = await fetchNowPlaying(accessToken!)
+    const result = await getNowOrLastPlayed(accessToken!)
 
-    if (response.status !== 401 || !refreshToken) {
-      return sendNowPlayingResponse(response, res)
+    if (
+      !(result instanceof Response) ||
+      result.status !== 401 ||
+      !refreshToken
+    ) {
+      return sendNowPlayingResponse(result, res)
     }
 
     const token = await refreshAccessToken(refreshToken)
     setSpotifyCookies(res, token)
 
     return sendNowPlayingResponse(
-      await fetchNowPlaying(token.access_token),
+      await getNowOrLastPlayed(token.access_token),
       res
     )
   } catch {
