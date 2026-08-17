@@ -30,6 +30,20 @@ Behavior:
 - Blocks direct `/api/login` access with `403`.
 - Logout can still appear if the current browser already has Spotify auth cookies.
 
+## Local development
+
+Local development skips Spotify login by default and uses mock now-playing data so you can work on the pill quickly.
+
+```env
+VITE_SPOTIFY_DEV_AUTH=false
+```
+
+To test the real Spotify OAuth flow locally, set:
+
+```env
+VITE_SPOTIFY_DEV_AUTH=true
+```
+
 ## Default
 
 If the env var is missing, the app defaults to:

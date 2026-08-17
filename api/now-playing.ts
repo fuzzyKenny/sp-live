@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 
 import {
-  parseCookies,
+  getSpotifyCookies,
   refreshAccessToken,
   setSpotifyCookies,
 } from "./_spotify.js"
@@ -22,9 +22,10 @@ type SpotifyTrack = {
   }
 }
 
-type NowPlayingResponse = {
-  is_playing?: boolean
+type PlaybackResponse = {
+  is_playing: boolean
   item?: SpotifyTrack | null
+  played_at?: string
 }
 
 type RecentlyPlayedResponse = {
@@ -56,7 +57,7 @@ async function getLastPlayed(accessToken: string) {
     is_playing: false,
     item: lastPlayed?.track,
     played_at: lastPlayed?.played_at,
-  }
+  } satisfies PlaybackResponse
 }
 
 async function getNowOrLastPlayed(accessToken: string) {
@@ -70,7 +71,7 @@ async function getNowOrLastPlayed(accessToken: string) {
     return response
   }
 
-  const data = (await response.json()) as NowPlayingResponse
+  const data = (await response.json()) as PlaybackResponse
 
   if (!data.item) {
     return getLastPlayed(accessToken)
@@ -79,9 +80,8 @@ async function getNowOrLastPlayed(accessToken: string) {
   return data
 }
 
-async function sendNowPlayingResponse(
-  result:
-    Response | Awaited<ReturnType<typeof getLastPlayed>> | NowPlayingResponse,
+async function sendPlaybackResponse(
+  result: Response | PlaybackResponse,
   res: VercelResponse
 ) {
   if (result instanceof Response) {
@@ -92,9 +92,10 @@ async function sendNowPlayingResponse(
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const cookies = parseCookies(req.headers.cookie)
-  const refreshToken = cookies.spotify_refresh_token
-  let accessToken = cookies.spotify_access_token
+  const { refreshToken, accessToken: initialAccessToken } = getSpotifyCookies(
+    req.headers.cookie
+  )
+  let accessToken = initialAccessToken
 
   if (!accessToken && !refreshToken) {
     return res.status(401).json({ error: "Not authenticated" })
@@ -114,13 +115,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       result.status !== 401 ||
       !refreshToken
     ) {
-      return sendNowPlayingResponse(result, res)
+      return sendPlaybackResponse(result, res)
     }
 
     const token = await refreshAccessToken(refreshToken)
     setSpotifyCookies(res, token)
 
-    return sendNowPlayingResponse(
+    return sendPlaybackResponse(
       await getNowOrLastPlayed(token.access_token),
       res
     )

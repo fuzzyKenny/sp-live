@@ -1,12 +1,23 @@
+import { Buffer } from "node:buffer"
+import process from "node:process"
+
 import type { VercelResponse } from "@vercel/node"
 
 const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
+const ACCESS_TOKEN_COOKIE = "spotify_access_token"
+const REFRESH_TOKEN_COOKIE = "spotify_refresh_token"
+const ONE_YEAR_IN_SECONDS = 31_536_000
 
 export const SPOTIFY_SCOPES = [
   "user-read-currently-playing",
   "user-read-playback-state",
   "user-read-recently-played",
 ].join(" ")
+
+export type SpotifyCookies = {
+  accessToken?: string
+  refreshToken?: string
+}
 
 type SpotifyTokenResponse = {
   access_token: string
@@ -60,6 +71,21 @@ export function parseCookies(cookieHeader: string | undefined) {
   return cookies
 }
 
+export function isPrivateSpotifyAuthMode() {
+  return process.env.VITE_SPOTIFY_AUTH_MODE === "private"
+}
+
+export function getSpotifyCookies(
+  cookieHeader: string | undefined
+): SpotifyCookies {
+  const cookies = parseCookies(cookieHeader)
+
+  return {
+    accessToken: cookies[ACCESS_TOKEN_COOKIE],
+    refreshToken: cookies[REFRESH_TOKEN_COOKIE],
+  }
+}
+
 function serializeCookie(name: string, value: string, maxAge: number) {
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : ""
 
@@ -74,20 +100,27 @@ export function setSpotifyCookies(
   >
 ) {
   const cookies = [
-    serializeCookie(
-      "spotify_access_token",
-      token.access_token,
-      token.expires_in
-    ),
+    serializeCookie(ACCESS_TOKEN_COOKIE, token.access_token, token.expires_in),
   ]
 
   if (token.refresh_token) {
     cookies.push(
-      serializeCookie("spotify_refresh_token", token.refresh_token, 31_536_000)
+      serializeCookie(
+        REFRESH_TOKEN_COOKIE,
+        token.refresh_token,
+        ONE_YEAR_IN_SECONDS
+      )
     )
   }
 
   res.setHeader("Set-Cookie", cookies)
+}
+
+export function clearSpotifyCookies(res: VercelResponse) {
+  res.setHeader("Set-Cookie", [
+    serializeCookie(ACCESS_TOKEN_COOKIE, "", 0),
+    serializeCookie(REFRESH_TOKEN_COOKIE, "", 0),
+  ])
 }
 
 async function requestToken(body: URLSearchParams) {

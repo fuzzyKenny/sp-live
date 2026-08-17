@@ -1,30 +1,39 @@
-import { Button } from "@/components/ui/button"
+import { useState } from "react"
 import { SiSpotify } from "react-icons/si"
-import { SpotifyPill } from "@/components/spotify-pill"
+
+import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
+import { SpotifyPill, type SpotifyPillVariant } from "@/components/spotify-pill"
 import { useNowPlaying } from "@/hooks/use-now-playing"
-import { ALLOW_SPOTIFY_LOGIN } from "@/config/spotify"
+import { ALLOW_SPOTIFY_LOGIN, USE_MOCK_SPOTIFY_DATA } from "@/config/spotify"
 
 export function App() {
+  const [pillVariant, setPillVariant] = useState<SpotifyPillVariant>("inline")
   const { data, isLoading } = useNowPlaying()
 
   const trackName = data?.item?.name ?? ""
   const artistName = data?.item?.artists?.[0]?.name ?? ""
-  const isPlaying = data?.is_playing ?? false
-  const isAuthenticated = data?.error !== "Not authenticated"
-  const showAuthActions = ALLOW_SPOTIFY_LOGIN || isAuthenticated
+  const hasTrack = Boolean(trackName)
+  const isAuthenticated = Boolean(data && !data.error) && !USE_MOCK_SPOTIFY_DATA
+  const showLoginButton = ALLOW_SPOTIFY_LOGIN && !isAuthenticated
+  const isStackedPill = pillVariant === "stacked"
+
+  const togglePillVariant = () => {
+    setPillVariant(isStackedPill ? "inline" : "stacked")
+  }
 
   return (
     <div className="flex min-h-svh items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <h1 className="text-2xl font-bold">Spotify Plugin</h1>
 
-        {showAuthActions && (
+        {(showLoginButton || isAuthenticated) && (
           <div className="flex items-center gap-2">
-            {ALLOW_SPOTIFY_LOGIN && (
+            {showLoginButton && (
               <a href="/api/login">
                 <Button>
                   <SiSpotify className="mr-2 h-4 w-4" />
-                  {isPlaying ? "Playing" : "Login to Spotify"}
+                  Login to Spotify
                 </Button>
               </a>
             )}
@@ -37,12 +46,24 @@ export function App() {
           </div>
         )}
 
-        {!isLoading && trackName && (
-          <SpotifyPill
-            trackName={trackName}
-            artistName={artistName}
-            variant="inline"
-          />
+        {!isLoading && hasTrack && (
+          <>
+            <SpotifyPill
+              trackName={trackName}
+              artistName={artistName}
+              variant={pillVariant}
+            />
+
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              Inline
+              <Switch
+                checked={isStackedPill}
+                aria-label="Toggle Spotify pill layout"
+                onClick={togglePillVariant}
+              />
+              Stacked
+            </label>
+          </>
         )}
 
         <div className="mt-4 font-mono text-xs text-muted-foreground">
